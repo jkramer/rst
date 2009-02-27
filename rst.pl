@@ -114,7 +114,7 @@ sub _search_file {
 
 			for my $match (@match) {
 				my ($lineno, $line) = @$match;
-				print $lineno, ': ', _color_match($line, $re), "\n";
+				printf("%5d: %s\n", $lineno, _color_match($line, $re));
 			}
 
 			print "\n";
