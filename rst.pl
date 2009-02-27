@@ -3,7 +3,6 @@
 use strict;
 use warnings;
 
-use File::Find;
 use IO::File;
 use IO::Pager;
 use Getopt::LL::Simple qw( -f -l -i -g=s -c );
@@ -44,22 +43,8 @@ sub _get_targets {
 
 	my @expanded;
 
-	# If there were targets given on the command line, expand and use them.
-	if(@target) {
-		for(@target) {
-			if(-f $_) {
-				push @expanded, $_;
-			}
-			else {
-				push @expanded, _find($_);
-			}
-		}
-	}
-	
-	# Otherwise, get everything from the current directory and below.
-	else {
-		push @expanded, _find('.');
-	}
+	push @target, '.' unless @target;
+	push @expanded, -d $_ ? _find($_) : $_ for(@target);
 
 	return @expanded;
 }
@@ -68,7 +53,9 @@ sub _get_targets {
 sub _find {
 	my ($path) = @_;
 
-	open(FIND, "find $path -print0 |" ) or die "can't run find: $!";
+	if(!open(FIND, "find $path -print0 2>/dev/null |")) {
+		die "Can't run find. $!.\n";
+	}
 
 	local $/ = "\x0";
 
