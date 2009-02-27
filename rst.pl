@@ -8,7 +8,7 @@ use lib './lib/'; ## DEVELOPMENT
 use File::Path::Walk;
 use IO::File;
 use IO::Pager;
-use Getopt::LL::Simple qw( -f -l -i -g=s -c -a );
+use Getopt::LL::Simple qw( -f -l -i -g=s -c );
 
 our $VERSION = '0.01';
 
