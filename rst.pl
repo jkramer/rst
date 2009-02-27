@@ -65,6 +65,7 @@ sub _find {
 	$re = qr/$ARGV{'-g'}/o if($ARGV{'-g'});
 
 	while(<FIND>) {
+		chomp;
 		next if -d $_;
 
 		next if _scm_directory($_);
