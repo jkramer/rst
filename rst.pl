@@ -7,6 +7,7 @@ use lib './lib/'; ## DEVELOPMENT
 
 use File::Path::Walk;
 use IO::File;
+use IO::Pager;
 use Getopt::LL::Simple qw(
 	-f
 	-l
@@ -39,6 +40,9 @@ if($ARGV{'-f'}) {
 
 my $re = $ARGV{'-i'} ? qr/$query/i : qr/$query/;
 
+if(!$ARGV{'-c'} && !$ARGV{'-l'}) {
+	$STDOUT = new IO::Pager(*STDOUT);
+}
 
 _search_file($_, $re) for(@target);
 
