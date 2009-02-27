@@ -8,13 +8,7 @@ use lib './lib/'; ## DEVELOPMENT
 use File::Path::Walk;
 use IO::File;
 use IO::Pager;
-use Getopt::LL::Simple qw(
-	-f
-	-l
-	-i
-	-g=s
-	-c
-);
+use Getopt::LL::Simple qw( -f -l -i -g=s -c -a );
 
 our $VERSION = '0.01';
 
@@ -38,7 +32,7 @@ if($ARGV{'-f'}) {
 	exit;
 }
 
-my $re = $ARGV{'-i'} ? qr/$query/i : qr/$query/;
+my $re = $ARGV{'-i'} ? qr/$query/io : qr/$query/o;
 
 if(!$ARGV{'-c'} && !$ARGV{'-l'}) {
 	$STDOUT = new IO::Pager(*STDOUT);
@@ -71,19 +65,22 @@ sub _get_targets {
 
 
 sub _make_filter {
-	my $re = $ARGV{'-g'};
-	$re = qr/$re/ if $re;
+	my $re;
+
+	if($ARGV{'-g'}) {
+		$re = qr/$ARGV{'-g'}/o;
+	}
 
 	return sub {
 		my $path = shift;
+		$path =~ s{^\./}{};
+
+		# Expression for paths (-g).
+		return if -f $path and $re and $path !~ $re;
 
 		return if _scm_directory($path);
 		return if _swap_file($path);
 		return if _binary($path);
-
-		# Expression for paths (-g).
-		$path =~ s{^\./}{};
-		return if -f $path and $re and $path !~ /$re/;
 
 		return 1;
 	};
@@ -102,7 +99,7 @@ sub _search_file {
 		++$lineno;
 		chomp $line;
 
-		push @match, [ $lineno, $line ] if($line =~ $re);
+		push @match, [ $lineno, $line ] if($line =~ /$re/o);
 	}
 
 	if(@match) {
@@ -147,7 +144,7 @@ sub _color_match {
 	my $code = $ENV{RST_COLOR_MATCH};
 
 	if($code) {
-		$line =~ s/($re)/\x1B[${code}m$1\x1B[0m/g;
+		$line =~ s/($re)/\x1B[${code}m$1\x1B[0m/go;
 	}
 
 	return $line;
