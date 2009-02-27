@@ -1,0 +1,4 @@
+
+RST is a simpler and faster replacement for ACK. It implements the most useful
+features of ACK and behaves pretty similar. Still it is about 5 times faster
+when searching many files, and it is easier to extend (at least for me).
