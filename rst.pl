@@ -3,9 +3,7 @@
 use strict;
 use warnings;
 
-use lib './lib/'; ## DEVELOPMENT
-
-use File::Path::Walk;
+use File::Find;
 use IO::File;
 use IO::Pager;
 use Getopt::LL::Simple qw( -f -l -i -g=s -c );
@@ -45,19 +43,51 @@ sub _get_targets {
 	my (@target) = @_;
 
 	my @expanded;
-	my $path = new File::Path::Walk(
-		filter => _make_filter(),
-		file => sub { push @expanded, $_[0] },
-	);
+
+	my $re;
+
+	if($ARGV{'-g'}) {
+		$re = qr/$ARGV{'-g'}/o;
+	}
+
+	# Prepare options for File::Find.
+	my $find = {
+		wanted => sub {
+			my $path = $_;
+
+			return unless -f $_;
+
+			$path =~ s{^\./}{};
+
+			# Expression for paths (-g).
+			return if $re and $path !~ $re;
+
+			return if _swap_file($path);
+			return if _binary($path);
+
+			push @expanded, $path;
+		},
+
+		no_chdir => 1,
+
+		preprocess => sub {
+			return grep { !_scm_directory($_) } @_;
+		},
+	};
 
 	# If there were targets given on the command line, expand and use them.
 	if(@target) {
-		$path->walk($_) for(@target);
+		if(-f $_) {
+			push @expanded, $_;
+		}
+		else {
+			find($find, $_);
+		}
 	}
 	
 	# Otherwise, get everything from the current directory and below.
 	else {
-		$path->walk('.');
+		find($find, '.');
 	}
 
 	return @expanded;
@@ -65,26 +95,8 @@ sub _get_targets {
 
 
 sub _make_filter {
-	my $re;
 
-	if($ARGV{'-g'}) {
-		$re = qr/$ARGV{'-g'}/o;
-	}
-
-	return sub {
-		my $path = shift;
-		$path =~ s{^\./}{};
-
-		# Expression for paths (-g).
-		return if -f $path and $re and $path !~ $re;
-
-		return if _scm_directory($path);
-		return if _swap_file($path);
-		return if _binary($path);
-
-		return 1;
-	};
-}
+	return }
 
 
 sub _search_file {
