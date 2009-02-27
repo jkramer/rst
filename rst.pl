@@ -161,7 +161,7 @@ sub _color_match {
 
 
 # Ignore common SCM directories.
-sub _scm_directory { $_[0] =~ m{^(?:\.?/)?(?:CVS|\.svn|\.git)/?$} }
+sub _scm_directory { $_[0] =~ m{/?(?:CVS|\.svn|\.git)/?$} }
 
 # Ignore Vim swap files.
 sub _swap_file { $_[0] =~ m{^(?:\.?/)?\..*\.sw[po]$} }
