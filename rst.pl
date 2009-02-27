@@ -44,59 +44,53 @@ sub _get_targets {
 
 	my @expanded;
 
-	my $re;
-
-	if($ARGV{'-g'}) {
-		$re = qr/$ARGV{'-g'}/o;
-	}
-
-	# Prepare options for File::Find.
-	my $find = {
-		wanted => sub {
-			my $path = $_;
-
-			return unless -f $_;
-
-			$path =~ s{^\./}{};
-
-			# Expression for paths (-g).
-			return if $re and $path !~ $re;
-
-			return if _swap_file($path);
-			return if _binary($path);
-
-			push @expanded, $path;
-		},
-
-		no_chdir => 1,
-
-		preprocess => sub {
-			return grep { !_scm_directory($_) } @_;
-		},
-	};
-
 	# If there were targets given on the command line, expand and use them.
 	if(@target) {
-		if(-f $_) {
-			push @expanded, $_;
-		}
-		else {
-			find($find, $_);
+		for(@target) {
+			if(-f $_) {
+				push @expanded, $_;
+			}
+			else {
+				push @expanded, _find($_);
+			}
 		}
 	}
 	
 	# Otherwise, get everything from the current directory and below.
 	else {
-		find($find, '.');
+		push @expanded, _find('.');
 	}
 
 	return @expanded;
 }
 
 
-sub _make_filter {
+sub _find {
+	my ($path) = @_;
 
-	return }
+	open(FIND, "find $path -print0 |" ) or die "can't run find: $!";
+
+	local $/ = "\x0";
+
+	my @result;
+	my $re;
+
+	$re = qr/$ARGV{'-g'}/o if($ARGV{'-g'});
+
+	while(<FIND>) {
+		next if -d $_;
+
+		next if _scm_directory($_);
+		next if _swap_file($_);
+		next if _binary($_);
+
+		next if $re and $_ !~ $re;
+
+		push @result, $_;
+	}
+
+	return @result;
+}
 
 
 sub _search_file {
@@ -107,12 +101,16 @@ sub _search_file {
 	my @match;
 	my $lineno = 0;
 
-	for my $line ($io->getlines) {
+	open(FILE, '<', $path);
+
+	for my $line (<FILE>) {
 		++$lineno;
 		chomp $line;
 
 		push @match, [ $lineno, $line ] if($line =~ /$re/o);
 	}
+
+	close(FILE);
 
 	if(@match) {
 		if($ARGV{'-l'}) {
@@ -164,7 +162,7 @@ sub _color_match {
 
 
 # Ignore common SCM directories.
-sub _scm_directory { $_[0] =~ m{/?(?:CVS|\.svn|\.git)/?$} }
+sub _scm_directory { $_[0] =~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)} }
 
 # Ignore Vim swap files.
 sub _swap_file { $_[0] =~ m{^(?:\.?/)?\..*\.sw[po]$} }
