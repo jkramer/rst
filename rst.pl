@@ -5,62 +5,50 @@ use warnings;
 
 use lib './lib/'; ## DEVELOPMENT
 
-use CLI::Application;
 use File::Path::Walk;
 use IO::File;
+use Getopt::LL::Simple qw(
+	-f
+	-l
+	-i
+	-g=s
+	-c
+);
 
 our $VERSION = '0.01';
 
-my $application = new CLI::Application(
-	name => 'rst',
-	version => $VERSION,
-	options => [
-		[ [ qw( a all ) ], 'include all files in search', 0 ],
-		[ [ qw( f file-list ) ], 'only print names of files found', 0 ],
-		[ [ qw( l list-result ) ], 'list files that match', 0 ],
-		[ [ qw( i ignore-case) ], 'ignore case', 0 ],
-		[ [ qw( g file-filter ) ], 'only search files matching this expression', 1 ],
-	],
-);
+my ($query, @target) = @ARGV;
 
-$application->prepare(@ARGV);
-
-$application->dispatch('search');
-
-sub search : Command : Fallback {
-	my ($application) = @_;
-
-	my ($query, @target) = $application->arguments;
-
-	if($application->option('file-filter') && !$query) {
-		$application->option('file-list' => 1);
-	}
-
-	die "No query.\n" unless $query or $application->option('file-list');
-
-	@target = _get_targets($application, @target);
-	s{^\./}{} for(@target);
-
-	# -f: print files that would have been searched and exit.
-	if($application->option('file-list')) {
-		$, = $\ = "\n";
-		print @target;
-		exit;
-	}
-
-	my $re = $application->option('ignore-case') ? qr/$query/i : qr/$query/;
-
-	for my $target (@target) {
-		_search_file($application, $target, $re);
-	}
+# If -g but no query is given, assume -f.
+if($ARGV{'-g'} && !$query) {
+	$ARGV{'-f'} = 1;
 }
 
+die "No query.\n" unless $query or $ARGV{'-f'};
+
+# Get list of files to grep/print.
+@target = _get_targets(@target);
+s{^\./}{} for(@target);
+
+# -f: print files that would have been searched and exit.
+if($ARGV{'-f'}) {
+	$, = $\ = "\n";
+	print @target;
+	exit;
+}
+
+my $re = $ARGV{'-i'} ? qr/$query/i : qr/$query/;
+
+
+_search_file($_, $re) for(@target);
+
+
 sub _get_targets {
-	my ($application, @target) = @_;
+	my (@target) = @_;
 
 	my @expanded;
 	my $path = new File::Path::Walk(
-		filter => _make_filter($application),
+		filter => _make_filter(),
 		file => sub { push @expanded, $_[0] },
 	);
 
@@ -79,9 +67,7 @@ sub _get_targets {
 
 
 sub _make_filter {
-	my ($application) = @_;
-
-	my $re = $application->option('file-filter');
+	my $re = $ARGV{'-g'};
 	$re = qr/$re/ if $re;
 
 	return sub {
@@ -92,6 +78,7 @@ sub _make_filter {
 		return if _binary($path);
 
 		# Expression for paths (-g).
+		$path =~ s{^\./}{};
 		return if -f $path and $re and $path !~ /$re/;
 
 		return 1;
@@ -100,7 +87,7 @@ sub _make_filter {
 
 
 sub _search_file {
-	my ($application, $path, $re) = @_;
+	my ($path, $re) = @_;
 
 	my $io = new IO::File($path, '<');
 
@@ -111,14 +98,17 @@ sub _search_file {
 		++$lineno;
 		chomp $line;
 
-		if($line =~ $re) {
-			push @match, [ $lineno, $line ];
-		}
+		push @match, [ $lineno, $line ] if($line =~ $re);
 	}
 
 	if(@match) {
-		if($application->option('list-result')) {
+		if($ARGV{'-l'}) {
 			print "$path\n";
+		}
+		elsif($ARGV{'-c'}) {
+			for my $match (@match) {
+				print "$path:$match->[0]:$match->[1]\n";
+			}
 		}
 		else {
 			print _color_file($path), "\n";
