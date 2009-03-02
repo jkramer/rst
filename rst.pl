@@ -5,7 +5,7 @@ use warnings;
 
 use IO::File;
 use IO::Pager;
-use Getopt::LL::Simple qw( -f -l -i -g=s -c );
+use Getopt::LL::Simple qw( -f -l -i -g=s -c -e );
 
 our $VERSION = '0.01';
 
@@ -31,11 +31,20 @@ if($ARGV{'-f'}) {
 
 my $re = $ARGV{'-i'} ? qr/$query/io : qr/$query/o;
 
-if(!$ARGV{'-c'} && !$ARGV{'-l'}) {
+if(!$ARGV{'-c'} && !$ARGV{'-l'} && !$ARGV{'-e'}) {
 	$STDOUT = new IO::Pager(*STDOUT);
 }
 
-_search_file($_, $re) for(@target);
+my @match;
+
+for(@target) {
+	push @match, $_ if(_search_file($_, $re));
+}
+
+if($ARGV{'-e'}) {
+	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
+	system $cmd, @match;
+}
 
 
 sub _get_targets {
@@ -100,7 +109,7 @@ sub _search_file {
 
 	close(FILE);
 
-	if(@match) {
+	if(@match && !$ARGV{'-e'}) {
 		if($ARGV{'-l'}) {
 			print "$path\n";
 		}
@@ -120,6 +129,8 @@ sub _search_file {
 			print "\n";
 		}
 	}
+
+	return ~~ @match;
 }
 
 
