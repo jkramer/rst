@@ -3,6 +3,8 @@
 use strict;
 use warnings;
 
+use feature ':5.10';
+
 use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h );
 
 our $VERSION = '0.01';
@@ -148,40 +150,39 @@ sub _color_match {
 sub _walk {
 	my ($path, $result) = @_;
 
+	state $regexp = $ARGV{'-g'} ? qr/$ARGV{'-g'}/o : undef;
+
 	return unless -r $path;
 
 	# Handle directories.
 	if(-d _) {
+
         # Skip SCM directories.
 		return if $path =~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)};
+		
+		# Recurse into directory.
+		my $directory;
 
-        my $directory;
-
-        opendir($directory, $path) or die "FUCK! $!\n";
+        opendir($directory, $path);
 
         for my $entry (readdir($directory)) {
-			next if $entry =~ /^\.{1,2}$/;
-
-			_walk($path . '/' . $entry, $result);
+			_walk($path . '/' . $entry, $result) if($entry !~ /^\.{1,2}$/);
 		}
 
         closedir($directory);
 	}
 
 	# Handle simple files.
-	elsif(-f _ and -T _) {
+	elsif(-f _) {
 		$path =~ s{/+}{/}g;
 
 		# Ignore Vim swap files.
 		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
 
 		# Apply file filter.
-        if($ARGV{'-g'}) {
-            my $regexp = qr/$ARGV{'-g'}/o;
-            return if $path !~ $regexp;
-        }
+		return if $regexp && $path !~ $regexp;
 
-        push @{$result}, $path;
+        push @{$result}, $path if -T _;
 	}
 }
 
