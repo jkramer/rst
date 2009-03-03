@@ -5,6 +5,7 @@ use warnings;
 
 use IO::File;
 use IO::Pager;
+use IO::Dir;
 use Getopt::LL::Simple qw( -f -l -i -g=s -c -e );
 
 our $VERSION = '0.01';
@@ -62,29 +63,29 @@ sub _get_targets {
 sub _find {
 	my ($path) = @_;
 
-	if(!open(FIND, "find $path -print0 2>/dev/null |")) {
-		die "Can't run find. $!.\n";
-	}
-
-	local $/ = "\x0";
-
 	my @result;
+
+	my $filter = sub { $_[0] !~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)} };
+
 	my $re;
-
-	$re = qr/$ARGV{'-g'}/o if($ARGV{'-g'});
-
-	while(<FIND>) {
-		chomp;
-		next if -d $_;
-
-		next if _scm_directory($_);
-		next if _swap_file($_);
-		next if _binary($_);
-
-		next if $re and $_ !~ $re;
-
-		push @result, $_;
+	if($ARGV{'-g'}) {
+		$re = qr/$ARGV{'-g'}/o;
 	}
+
+	my $adder = sub {
+		my $file = $_[0];
+
+		$file =~ s{/+}{/}g;
+
+		# Ignore Vim swap files.
+		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
+
+		return if $re and $file !~ $re;
+
+		push @result, $file;
+	};
+
+	_walk($path, $filter, $adder);
 
 	return @result;
 }
@@ -160,13 +161,29 @@ sub _color_match {
 }
 
 
-# Ignore common SCM directories.
-sub _scm_directory { $_[0] =~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)} }
+sub _walk {
+	my ($path, $filter, $adder) = @_;
 
-# Ignore Vim swap files.
-sub _swap_file { $_[0] =~ m{^(?:\.?/)?\..*\.sw[po]$} }
+	return unless -r $path;
 
-# Ignore binaries.
-sub _binary {
-	$_[0] =~ m{\.(?:o|so|a)$}
+	# Handle directories.
+	if(-d _) {
+		# Skip if directory filter callback doesn't return true.
+		return unless &{$filter}($path);
+
+		my $directory = new IO::Dir($path);
+
+		while(defined(my $entry = $directory->read)) {
+			next if $entry =~ /^\.{1,2}$/;
+
+			_walk($path . '/' . $entry, $filter, $adder);
+		}
+
+		$directory->close;
+	}
+
+	# Handle simple files.
+	elsif(-f _) {
+		&{$adder}($path);
+	}
 }
