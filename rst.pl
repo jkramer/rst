@@ -3,14 +3,19 @@
 use strict;
 use warnings;
 
-use IO::File;
-use IO::Pager;
-use IO::Dir;
-use Getopt::LL::Simple qw( -f -l -i -g=s -c -e );
+use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h );
 
 our $VERSION = '0.01';
 
+die _help() if($ARGV{'-h'});
+
+
 my ($query, @target) = @ARGV;
+
+if($ARGV{'-n'}) {
+	unshift @target, $query;
+	undef $query;
+}
 
 # If -g but no query is given, assume -f.
 if($ARGV{'-g'} && !$query) {
@@ -30,17 +35,15 @@ if($ARGV{'-f'}) {
 	exit;
 }
 
-my $re = $ARGV{'-i'} ? qr/$query/io : qr/$query/o;
+my $re = $ARGV{'-i'} ? qr/$query/i : qr/$query/;
 
 if(!$ARGV{'-c'} && !$ARGV{'-l'} && !$ARGV{'-e'}) {
+    require IO::Pager;
 	$STDOUT = new IO::Pager(*STDOUT);
 }
 
-my @match;
+my @match = grep { _search_file($_, $re) } @target;
 
-for(@target) {
-	push @match, $_ if(_search_file($_, $re));
-}
 
 if($ARGV{'-e'}) {
 	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
@@ -65,27 +68,7 @@ sub _find {
 
 	my @result;
 
-	my $filter = sub { $_[0] !~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)} };
-
-	my $re;
-	if($ARGV{'-g'}) {
-		$re = qr/$ARGV{'-g'}/o;
-	}
-
-	my $adder = sub {
-		my $file = $_[0];
-
-		$file =~ s{/+}{/}g;
-
-		# Ignore Vim swap files.
-		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
-
-		return if $re and $file !~ $re;
-
-		push @result, $file;
-	};
-
-	_walk($path, $filter, $adder);
+	_walk($path, \@result);
 
 	return @result;
 }
@@ -94,12 +77,13 @@ sub _find {
 sub _search_file {
 	my ($path, $re) = @_;
 
-	my $io = new IO::File($path, '<');
-
 	my @match;
 	my $lineno = 0;
 
-	open(FILE, '<', $path);
+	if(!open(FILE, '<', $path)) {
+        warn "Can't open $path. $!.\n";
+        return;
+    }
 
 	for my $line (<FILE>) {
 		++$lineno;
@@ -162,28 +146,58 @@ sub _color_match {
 
 
 sub _walk {
-	my ($path, $filter, $adder) = @_;
+	my ($path, $result) = @_;
 
 	return unless -r $path;
 
 	# Handle directories.
 	if(-d _) {
-		# Skip if directory filter callback doesn't return true.
-		return unless &{$filter}($path);
+        # Skip SCM directories.
+		return if $path =~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)};
 
-		my $directory = new IO::Dir($path);
+        my $directory;
 
-		while(defined(my $entry = $directory->read)) {
+        opendir($directory, $path) or die "FUCK! $!\n";
+
+        for my $entry (readdir($directory)) {
 			next if $entry =~ /^\.{1,2}$/;
 
-			_walk($path . '/' . $entry, $filter, $adder);
+			_walk($path . '/' . $entry, $result);
 		}
 
-		$directory->close;
+        closedir($directory);
 	}
 
 	# Handle simple files.
-	elsif(-f _) {
-		&{$adder}($path);
+	elsif(-f _ and -T _) {
+		$path =~ s{/+}{/}g;
+
+		# Ignore Vim swap files.
+		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
+
+		# Apply file filter.
+        if($ARGV{'-g'}) {
+            my $regexp = qr/$ARGV{'-g'}/o;
+            return if $path !~ $regexp;
+        }
+
+        push @{$result}, $path;
 	}
+}
+
+
+sub _help {
+	return <<HELP;
+Usage: $0 [-f|-l] [-g regexp] [-i] [-c] [-e] [-n] [regexp] [paths]
+
+Options:
+  -f         print a list of files that would have been searched
+  -l         print only the names of matching files, not the matching lines
+  -g regexp  filter files applying the regexp on their paths
+  -i         search case insensitive
+  -e         open matching files in editor
+  -n         no query - use this if want to give paths as parameter but no
+             regexp
+  -h         print this help and exit
+HELP
 }
