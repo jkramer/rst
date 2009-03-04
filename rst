@@ -32,8 +32,7 @@ s{^\./}{} for(@target);
 
 # -f: print files that would have been searched and exit.
 if($ARGV{'-f'}) {
-	$, = $\ = "\n";
-	print @target;
+	print $_, "\n" for(@target);
 	exit;
 }
 
