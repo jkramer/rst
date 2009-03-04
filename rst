@@ -33,7 +33,7 @@ s{^\./}{} for(@target);
 # -f: print files that would have been searched and exit.
 if($ARGV{'-f'}) {
 	if($ARGV{'-e'}) {
-		_edit(@target);
+		_edit(grep { -T $_ } @target);
 	}
 	else {
 		print $_, "\n" for(@target);
@@ -86,6 +86,8 @@ sub _find {
 
 sub _search_file {
 	my ($path, $re) = @_;
+
+	return if -B $path;
 
 	my @match;
 	my $lineno = 0;
@@ -192,7 +194,7 @@ sub _walk {
 		# Apply file filter.
 		return if $regexp && $path !~ $regexp;
 
-        push @{$result}, $path if -T _;
+        push @{$result}, $path;
 	}
 }
 
