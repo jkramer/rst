@@ -32,7 +32,13 @@ s{^\./}{} for(@target);
 
 # -f: print files that would have been searched and exit.
 if($ARGV{'-f'}) {
-	print $_, "\n" for(@target);
+	if($ARGV{'-e'}) {
+		_edit(@target);
+	}
+	else {
+		print $_, "\n" for(@target);
+	}
+
 	exit;
 }
 
@@ -46,9 +52,12 @@ if(!$ARGV{'-c'} && !$ARGV{'-l'} && !$ARGV{'-e'}) {
 my @match = grep { _search_file($_, $re) } @target;
 
 
-if($ARGV{'-e'}) {
+_edit(@match) if($ARGV{'-e'});
+
+
+sub _edit {
 	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
-	system $cmd, @match;
+	system $cmd, @_;
 }
 
 
