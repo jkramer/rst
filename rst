@@ -149,7 +149,9 @@ sub _color_match {
 sub _walk {
 	my ($path, $result) = @_;
 
-	state $regexp = $ARGV{'-g'} ? qr/$ARGV{'-g'}/o : undef;
+	state $regexp = $ARGV{'-g'}
+		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
+		: undef;
 
 	return unless -r $path;
 
