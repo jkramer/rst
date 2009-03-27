@@ -163,8 +163,8 @@ sub _walk {
 	state $regexp = $ARGV{'-g'}
 		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
 		: undef;
-
-	return unless -r $path;
+	
+	return unless -e $path;
 
 	# Handle directories.
 	if(-d _) {
