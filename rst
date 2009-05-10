@@ -5,7 +5,7 @@ use warnings;
 
 use feature ':5.10';
 
-use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h );
+use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h -G=s );
 
 our $VERSION = '0.01';
 
@@ -20,7 +20,7 @@ if($ARGV{'-n'}) {
 }
 
 # If -g but no query is given, assume -f.
-if($ARGV{'-g'} && !$query) {
+if(($ARGV{'-g'} || $ARGV{'-G'}) && !$query) {
 	$ARGV{'-f'} = 1;
 }
 
@@ -160,10 +160,14 @@ sub _color_match {
 sub _walk {
 	my ($path, $result) = @_;
 
-	state $regexp = $ARGV{'-g'}
+	state $include = $ARGV{'-g'}
 		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
 		: undef;
-	
+
+	state $exclude = $ARGV{'-G'}
+		? ($ARGV{'-i'} ? qr/$ARGV{'-G'}/i : qr/$ARGV{'-G'}/)
+		: undef;
+
 	return unless -e $path;
 
 	# Handle directories.
@@ -171,7 +175,7 @@ sub _walk {
 
         # Skip SCM directories.
 		return if $path =~ m{(?:^|/)(?:CVS|\.svn|\.git)(?:/|$)};
-		
+
 		# Recurse into directory.
 		my $directory;
 
@@ -191,8 +195,11 @@ sub _walk {
 		# Ignore Vim swap files.
 		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
 
-		# Apply file filter.
-		return if $regexp && $path !~ $regexp;
+		# Apply include filter.
+		return if $include && $path !~ $include;
+
+		# Apply exclude filter.
+		return if $exclude && $path =~ $exclude;
 
         push @{$result}, $path;
 	}
@@ -207,10 +214,12 @@ Options:
   -f         print a list of files that would have been searched
   -l         print only the names of matching files, not the matching lines
   -g regexp  filter files applying the regexp on their paths
+  -G regexp  same as -g, but exclude matching files
   -i         search case insensitive
-  -e         open matching files in editor
+  -e         open matching files in \$EDITOR
   -n         no query - use this if want to give paths as parameter but no
              regexp
+  -c         compact (grep-like) output, no pager
   -h         print this help and exit
 HELP
 }
