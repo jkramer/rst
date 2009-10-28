@@ -3,11 +3,10 @@
 use strict;
 use warnings;
 
-use feature ':5.10';
-
 use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h -G=s );
 
 our $VERSION = '0.01';
+our ($include, $exclude);
 
 die _help() if($ARGV{'-h'});
 
@@ -77,6 +76,14 @@ sub _find {
 	my ($path) = @_;
 
 	my @result;
+
+	$include = $ARGV{'-g'}
+		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
+		: undef;
+
+	$exclude = $ARGV{'-G'}
+		? ($ARGV{'-i'} ? qr/$ARGV{'-G'}/i : qr/$ARGV{'-G'}/)
+		: undef;
 
 	_walk($path, \@result);
 
@@ -159,14 +166,6 @@ sub _color_match {
 
 sub _walk {
 	my ($path, $result) = @_;
-
-	state $include = $ARGV{'-g'}
-		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
-		: undef;
-
-	state $exclude = $ARGV{'-G'}
-		? ($ARGV{'-i'} ? qr/$ARGV{'-G'}/i : qr/$ARGV{'-G'}/)
-		: undef;
 
 	return unless -e $path;
 
