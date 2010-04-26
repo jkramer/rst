@@ -3,35 +3,39 @@
 use strict;
 use warnings;
 
-use Getopt::LL::Simple qw( -f -l -i -g=s -c -e -n -h -G=s );
+use Getopt::Easy;
 
 our $VERSION = '0.01';
 our ($include, $exclude);
 
-die _help() if($ARGV{'-h'});
+
+get_options("f-f l-l g-g= G-G= i-i e-e n-n c-c h-h");
+
+
+die _help() if($O{h});
 
 
 my ($query, @target) = @ARGV;
 
-if($ARGV{'-n'}) {
+if($O{n}) {
 	unshift @target, $query;
 	undef $query;
 }
 
 # If -g but no query is given, assume -f.
-if(($ARGV{'-g'} || $ARGV{'-G'}) && !$query) {
-	$ARGV{'-f'} = 1;
+if(($O{g} || $O{G}) && !$query) {
+	$O{f} = 1;
 }
 
-die "No query.\n" unless $query or $ARGV{'-f'};
+die "No query.\n" unless $query or $O{f};
 
 # Get list of files to grep/print.
 @target = _get_targets(@target);
 s{^\./}{} for(@target);
 
 # -f: print files that would have been searched and exit.
-if($ARGV{'-f'}) {
-	if($ARGV{'-e'}) {
+if($O{f}) {
+	if($O{e}) {
 		_edit(grep { -T $_ } @target);
 	}
 	else {
@@ -41,9 +45,9 @@ if($ARGV{'-f'}) {
 	exit;
 }
 
-my $re = $ARGV{'-i'} ? qr/$query/i : qr/$query/;
+my $re = $O{i} ? qr/$query/i : qr/$query/;
 
-if(!$ARGV{'-c'} && !$ARGV{'-l'} && !$ARGV{'-e'}) {
+if(!$O{c} && !$O{l} && !$O{e}) {
     require IO::Pager;
 	$STDOUT = new IO::Pager(*STDOUT);
 }
@@ -51,7 +55,7 @@ if(!$ARGV{'-c'} && !$ARGV{'-l'} && !$ARGV{'-e'}) {
 my @match = grep { _search_file($_, $re) } @target;
 
 
-_edit(@match) if($ARGV{'-e'});
+_edit(@match) if($O{e});
 
 
 sub _edit {
@@ -77,12 +81,12 @@ sub _find {
 
 	my @result;
 
-	$include = $ARGV{'-g'}
-		? ($ARGV{'-i'} ? qr/$ARGV{'-g'}/i : qr/$ARGV{'-g'}/)
+	$include = $O{g}
+		? ($O{i} ? qr/$O{g}/i : qr/$O{g}/)
 		: undef;
 
-	$exclude = $ARGV{'-G'}
-		? ($ARGV{'-i'} ? qr/$ARGV{'-G'}/i : qr/$ARGV{'-G'}/)
+	$exclude = $O{G}
+		? ($O{i} ? qr/$O{G}/i : qr/$O{G}/)
 		: undef;
 
 	_walk($path, \@result);
@@ -113,11 +117,11 @@ sub _search_file {
 
 	close(FILE);
 
-	if(@match && !$ARGV{'-e'}) {
-		if($ARGV{'-l'}) {
+	if(@match && !$O{e}) {
+		if($O{l}) {
 			print "$path\n";
 		}
-		elsif($ARGV{'-c'}) {
+		elsif($O{c}) {
 			for my $match (@match) {
 				print "$path:$match->[0]:$match->[1]\n";
 			}
