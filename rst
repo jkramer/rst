@@ -3,14 +3,15 @@
 use strict;
 use warnings;
 
-use Getopt::Easy;
+use Getopt::Long qw(:config gnu_getopt);
 
 our $VERSION = '0.01';
 our ($include, $exclude);
 
 
-get_options("f-f l-l g-g= G-G= i-i e-e n-n c-c h-h");
+my %O;
 
+GetOptions(\%O, qw(f l i e n c h g=s G=s));
 
 die _help() if($O{h});
 
