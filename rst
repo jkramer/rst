@@ -199,6 +199,9 @@ sub _walk {
 		# Ignore Vim swap files.
 		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
 
+		# Skip CVS files (like this: ./perl/.#foobar.pl.1.229).
+		return if $path =~ m{(?:^|/)\.[^/]*\#(?:\.\d+)+$};
+
 		# Apply include filter.
 		return if $include && $path !~ $include;
 
