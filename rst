@@ -6,12 +6,12 @@ use warnings;
 use Getopt::Long qw(:config gnu_getopt);
 
 our $VERSION = '0.01';
-our ($include, $exclude);
+our ($include, $exclude, $filetype);
 
 
 my %O;
 
-GetOptions(\%O, qw(f l i e n c h g=s G=s));
+GetOptions(\%O, qw(f l i e n c h t=s g=s G=s)) or exit(-1);
 
 die _help() if($O{h});
 
@@ -29,6 +29,8 @@ if(($O{g} || $O{G}) && !$query) {
 }
 
 die "No query.\n" unless $query or $O{f};
+
+die "Unknown file type '$O{t}'.\n" if($O{t} && !_file_type($O{t}));
 
 # Get list of files to grep/print.
 @target = _get_targets(@target);
@@ -89,6 +91,8 @@ sub _find {
 	$exclude = $O{G}
 		? ($O{i} ? qr/$O{G}/i : qr/$O{G}/)
 		: undef;
+
+    $filetype = $O{t} ? _file_type($O{t}) : undef;
 
 	_walk($path, \@result);
 
@@ -202,6 +206,9 @@ sub _walk {
 		# Skip CVS files (like this: ./perl/.#foobar.pl.1.229).
 		return if $path =~ m{(?:^|/)\.[^/]*\#(?:\.\d+)+$};
 
+        # Apply filetype filter.
+        return if $filetype && $path !~ $filetype;
+
 		# Apply include filter.
 		return if $include && $path !~ $include;
 
@@ -222,6 +229,7 @@ Options:
   -l         print only the names of matching files, not the matching lines
   -g regexp  filter files applying the regexp on their paths
   -G regexp  same as -g, but exclude matching files
+  -t type    file type filter (currently known: perl, c, haskell, shell)
   -i         search case insensitive
   -e         open matching files in \$EDITOR
   -n         no query - use this if want to give paths as parameter but no
@@ -229,4 +237,18 @@ Options:
   -c         compact (grep-like) output, no pager
   -h         print this help and exit
 HELP
+}
+
+
+sub _file_type {
+    my ($type) = @_;
+
+    my $regex = {
+        perl    => qr/\.(?:p[lm]|t)$/,
+        c       => qr/\.[ch]$/,
+        haskell => qr/\.l?hs$/,
+        shell   => qr/\.[cz]?sh$/,
+    };
+
+    return $regex->{$type};
 }
