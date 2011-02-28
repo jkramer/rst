@@ -204,7 +204,7 @@ sub _walk {
 		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
 
 		# Skip CVS files (like this: ./perl/.#foobar.pl.1.229).
-		return if $path =~ m{(?:^|/)\.[^/]*\#(?:\.\d+)+$};
+		return if $path =~ m{(?:^|/)\.\#[^/]*(?:\.\d+)+$};
 
         # Apply filetype filter.
         return if $filetype && $path !~ $filetype;
