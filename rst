@@ -66,7 +66,7 @@ exit(int(@match) ? 0 : -1);
 
 sub _edit {
 	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
-	system $cmd, @_;
+	system $cmd, @_ if(@_);
 }
 
 
