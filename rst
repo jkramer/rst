@@ -6,12 +6,12 @@ use warnings;
 use Getopt::Long qw(:config gnu_getopt);
 
 our $VERSION = '0.01';
-our ($include, $exclude, $filetype);
+our ($include, $exclude, $ignore, $filetype);
 
 
 my %O;
 
-GetOptions(\%O, qw(f l i e n c h t=s g=s G=s)) or exit(-1);
+GetOptions(\%O, qw(f l i e n c h t=s g=s G=s q)) or exit(-1);
 
 die _help() if($O{h});
 
@@ -48,6 +48,7 @@ if($O{f}) {
 	exit;
 }
 
+$query = quotemeta($query) if($O{q});
 my $re = $O{i} ? qr/$query/i : qr/$query/;
 
 if(!$O{c} && !$O{l} && !$O{e}) {
@@ -230,6 +231,7 @@ Options:
   -g regexp  filter files applying the regexp on their paths
   -G regexp  same as -g, but exclude matching files
   -t type    file type filter (currently known: perl, c, haskell, shell)
+  -q         search for literal string instead of a regular expression
   -i         search case insensitive
   -e         open matching files in \$EDITOR
   -n         no query - use this if want to give paths as parameter but no
