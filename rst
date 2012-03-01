@@ -159,6 +159,18 @@ sub _color_file {
 
 	my $code = $ENV{RST_COLOR_FILENAME};
 
+    my $target = $file;
+
+    my @path;
+
+    while(-l $target) {
+        push @path, ($target = readlink($target));
+    }
+
+    if(@path) {
+        $file .= join('', map { " -> $_" } @path);
+    }
+
 	if($code) {
 		$file = "\x1B[${code}m${file}\x1B[0m";
 	}
