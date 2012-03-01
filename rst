@@ -95,6 +95,10 @@ sub _find {
 		? ($O{i} ? qr/$O{G}/i : qr/$O{G}/)
 		: undef;
 
+    if(exists $ENV{RST_IGNORE}) {
+        $ignore = qr/$ENV{RST_IGNORE}/;
+    }
+
     $filetype = $O{t} ? _file_type($O{t}) : undef;
 
 	_walk($path, \@result);
@@ -217,6 +221,9 @@ sub _walk {
 
 		# Apply exclude filter.
 		return if $exclude && $path =~ $exclude;
+
+        # Apply ignore filter.
+        return if $ignore && $path =~ $ignore;
 
         push @{$result}, $path;
 	}
