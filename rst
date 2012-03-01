@@ -270,7 +270,8 @@ sub _file_type {
         perl    => qr/\.(?:p[lm]|t)$/,
         c       => qr/\.[ch]$/,
         haskell => qr/\.l?hs$/,
-        shell   => qr/\.[cz]?sh$/,
+        shell   => qr/\.[czk]?sh$/,
+        java    => qr/\.java$/,
     };
 
     return $regex->{$type};
