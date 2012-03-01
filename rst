@@ -61,6 +61,8 @@ my @match = grep { _search_file($_, $re) } @target;
 
 _edit(@match) if($O{e});
 
+exit(int(@match) ? 0 : -1);
+
 
 sub _edit {
 	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
