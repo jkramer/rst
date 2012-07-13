@@ -149,7 +149,7 @@ sub _color_file {
 	my $code = $ENV{RST_COLOR_FILENAME};
 
 	if($code) {
-		$file = "\x1B[${code}m${file}\x1B[0m";
+		$file = "\e[${code}m${file}\e[0m";
 	}
 
 	return $file;
