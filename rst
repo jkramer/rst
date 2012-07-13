@@ -272,6 +272,7 @@ sub _file_type {
         haskell => qr/\.l?hs$/,
         shell   => qr/\.[czk]?sh$/,
         java    => qr/\.java$/,
+		php     => qr/\.php$/,
     };
 
     return $regex->{$type};
