@@ -6,12 +6,12 @@ use warnings;
 use Getopt::Long qw(:config gnu_getopt);
 
 our $VERSION = '0.01';
-our ($include, $exclude);
+our ($include, $exclude, $ignore, $filetype);
 
 
 my %O;
 
-GetOptions(\%O, qw(f l i e n c h g=s G=s));
+GetOptions(\%O, qw(f l i e n c h t=s g=s G=s q)) or exit(-1);
 
 die _help() if($O{h});
 
@@ -30,6 +30,8 @@ if(($O{g} || $O{G}) && !$query) {
 
 die "No query.\n" unless $query or $O{f};
 
+die "Unknown file type '$O{t}'.\n" if($O{t} && !_file_type($O{t}));
+
 # Get list of files to grep/print.
 @target = _get_targets(@target);
 s{^\./}{} for(@target);
@@ -46,6 +48,7 @@ if($O{f}) {
 	exit;
 }
 
+$query = quotemeta($query) if($O{q});
 my $re = $O{i} ? qr/$query/i : qr/$query/;
 
 if(!$O{c} && !$O{l} && !$O{e}) {
@@ -58,10 +61,12 @@ my @match = grep { _search_file($_, $re) } @target;
 
 _edit(@match) if($O{e});
 
+exit(int(@match) ? 0 : -1);
+
 
 sub _edit {
 	my $cmd = $ENV{EDITOR} || $ENV{VISUAL} || 'vi';
-	system $cmd, @_;
+	system $cmd, @_ if(@_);
 }
 
 
@@ -89,6 +94,12 @@ sub _find {
 	$exclude = $O{G}
 		? ($O{i} ? qr/$O{G}/i : qr/$O{G}/)
 		: undef;
+
+    if(exists $ENV{RST_IGNORE}) {
+        $ignore = qr/$ENV{RST_IGNORE}/;
+    }
+
+    $filetype = $O{t} ? _file_type($O{t}) : undef;
 
 	_walk($path, \@result);
 
@@ -148,6 +159,18 @@ sub _color_file {
 
 	my $code = $ENV{RST_COLOR_FILENAME};
 
+    my $target = $file;
+
+    my @path;
+
+    while(-l $target) {
+        push @path, ($target = readlink($target));
+    }
+
+    if(@path) {
+        $file .= join('', map { " -> $_" } @path);
+    }
+
 	if($code) {
 		$file = "\e[${code}m${file}\e[0m";
 	}
@@ -200,13 +223,19 @@ sub _walk {
 		return if $path =~ m{^(?:\.?/)?\..*\.sw[po]$};
 
 		# Skip CVS files (like this: ./perl/.#foobar.pl.1.229).
-		return if $path =~ m{(?:^|/)\.[^/]*\#(?:\.\d+)+$};
+		return if $path =~ m{(?:^|/)\.\#[^/]*(?:\.\d+)+$};
+
+        # Apply filetype filter.
+        return if $filetype && $path !~ $filetype;
 
 		# Apply include filter.
 		return if $include && $path !~ $include;
 
 		# Apply exclude filter.
 		return if $exclude && $path =~ $exclude;
+
+        # Apply ignore filter.
+        return if $ignore && $path =~ $ignore;
 
         push @{$result}, $path;
 	}
@@ -222,6 +251,8 @@ Options:
   -l         print only the names of matching files, not the matching lines
   -g regexp  filter files applying the regexp on their paths
   -G regexp  same as -g, but exclude matching files
+  -t type    file type filter (currently known: perl, c, haskell, shell)
+  -q         search for literal string instead of a regular expression
   -i         search case insensitive
   -e         open matching files in \$EDITOR
   -n         no query - use this if want to give paths as parameter but no
@@ -229,4 +260,19 @@ Options:
   -c         compact (grep-like) output, no pager
   -h         print this help and exit
 HELP
+}
+
+
+sub _file_type {
+    my ($type) = @_;
+
+    my $regex = {
+        perl    => qr/\.(?:p[lm]|t)$/,
+        c       => qr/\.[ch]$/,
+        haskell => qr/\.l?hs$/,
+        shell   => qr/\.[czk]?sh$/,
+        java    => qr/\.java$/,
+    };
+
+    return $regex->{$type};
 }
